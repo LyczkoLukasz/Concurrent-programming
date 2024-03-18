@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34616.47
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Concurrent-Programming", "Concurrent-Programming\Concurrent-Programming.csproj", "{BA4BD1C3-7AD0-4727-8072-38B552182BCE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test-Concurrent", "Test-Concurrent\Test-Concurrent.csproj", "{4FC253BD-144C-412B-9B6A-20C9ACC21B6C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BA4BD1C3-7AD0-4727-8072-38B552182BCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA4BD1C3-7AD0-4727-8072-38B552182BCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA4BD1C3-7AD0-4727-8072-38B552182BCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA4BD1C3-7AD0-4727-8072-38B552182BCE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4FC253BD-144C-412B-9B6A-20C9ACC21B6C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4FC253BD-144C-412B-9B6A-20C9ACC21B6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4FC253BD-144C-412B-9B6A-20C9ACC21B6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4FC253BD-144C-412B-9B6A-20C9ACC21B6C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0C9E7E25-D804-46D7-BED8-929684521F81}
+	EndGlobalSection
+EndGlobal
