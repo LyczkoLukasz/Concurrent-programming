@@ -20,5 +20,9 @@ namespace Concurrent_Programming
         {
             InitializeComponent();
         }
+        public void SetTitle(string title)
+        {
+            this.Title = title;
+        }
     }
 }
