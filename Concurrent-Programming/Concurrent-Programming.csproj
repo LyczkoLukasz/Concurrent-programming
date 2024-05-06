@@ -13,4 +13,12 @@
     <PackageReference Include="Xunit.StaFact" Version="1.1.11" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Logic-Layer\Logic-Layer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Model\" />
+  </ItemGroup>
+
 </Project>
