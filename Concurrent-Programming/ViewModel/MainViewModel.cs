@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,17 +38,15 @@ namespace Concurrent_Programming.ViewModel
         public ICommand StopCommand { get; set; }
 
         private BallService ballService;
-        private DispatcherTimer timer;
+        private CancellationTokenSource cts;
 
         public MainViewModel()
         {
             Balls = new ObservableCollection<Ball>();
             StartCommand = new RelayCommand(Start, CanStart);
             StopCommand = new RelayCommand(Stop, CanStop);
-            this.ballService = new BallService();
-            timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromMilliseconds(16); //16 ms poniewaz 1000ms/60fps = 16.(6) wiec 16ms odpowiada nieco ponad 60fps
-            timer.Tick += Timer_Tick;
+            var rectangle = new MovementRectangle { Width = 300, Height = 300 };
+            this.ballService = new BallService(rectangle);
         }
 
         protected virtual void OnPropertyChanged(string propertyName)
@@ -57,35 +56,55 @@ namespace Concurrent_Programming.ViewModel
 
         private bool CanStart(object parameter)
         {
-            return !timer.IsEnabled;
+            return cts == null || cts.IsCancellationRequested;
         }
 
-        private void Start(object parameter)
+        private async void Start(object parameter)
         {
             ballService.GenerateBalls(InitialBallCount);
-            timer.Start();
+            cts = new CancellationTokenSource();
+            await UpdateBallsAsync(cts.Token);
         }
 
         private bool CanStop(object parameter)
         {
-            return timer.IsEnabled;
+            return cts != null && !cts.IsCancellationRequested;
         }
 
         private void Stop(object parameter)
         {
-            timer.Stop();
-            ballService.ClearBalls();
-            Balls.Clear();
-        }
-
-        private void Timer_Tick(object sender, EventArgs e)
-        {
-            ballService.UpdateBalls();
-            Balls.Clear();
-            foreach (var ball in ballService.GetBalls())
+            if (cts != null && !cts.IsCancellationRequested)
             {
-                Balls.Add(ball);
+                cts.Cancel();
+                ballService.ClearBalls();
+                Balls.Clear();
             }
         }
+
+        private async Task UpdateBallsAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    ballService.UpdateBalls();
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        Balls.Clear();
+                        foreach (var ball in ballService.GetBalls())
+                        {
+                            Balls.Add(ball);
+                        }
+                    });
+
+                    await Task.Delay(16, cancellationToken); // Aktualizuj co 16 ms
+                }
+                catch (TaskCanceledException)
+                {
+                    // Zadanie zostało anulowane, nie rób nic
+                }
+            }
+        }
+
     }
 }

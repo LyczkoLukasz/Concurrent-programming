@@ -27,7 +27,8 @@ namespace Concurrent_Programming
 
         public BallViewModel()
         {
-            ballService = new BallService();
+            var rectangle = new MovementRectangle { Width = 300, Height = 300 };
+            ballService = new BallService(rectangle);
             balls = new ObservableCollection<Ball>(ballService.GetBalls());
         }
 

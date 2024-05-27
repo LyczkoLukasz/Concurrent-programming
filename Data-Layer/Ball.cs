@@ -47,6 +47,7 @@ namespace Data_Layer
         public double SpeedX { get; set; }
         public double SpeedY { get; set; }
 
+        public double Weight { get; set; }
         public double Diameter { get; set; }
     }
 }
