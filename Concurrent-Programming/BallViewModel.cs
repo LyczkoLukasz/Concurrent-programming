@@ -1,38 +1,43 @@
-﻿using Data_Layer;
-using Logic_Layer;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 
-namespace Concurrent_Programming
+namespace Concurrent_Programming.ViewModel
 {
     public class BallViewModel : INotifyPropertyChanged
     {
-        private BallService ballService;
-        private ObservableCollection<Ball> balls;
-
-        public ObservableCollection<Ball> Balls
-        {             
-            get { return balls; }
+        private double x;
+        public double X
+        {
+            get => x;
             set
             {
-                balls = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Balls)));
+                if (x != value)
+                {
+                    x = value;
+                    OnPropertyChanged(nameof(X));
+                }
             }
         }
 
-        public BallViewModel()
+        private double y;
+        public double Y
         {
-            var rectangle = new MovementRectangle { Width = 300, Height = 300 };
-            ballService = new BallService(rectangle);
-            balls = new ObservableCollection<Ball>(ballService.GetBalls());
+            get => y;
+            set
+            {
+                if (y != value)
+                {
+                    y = value;
+                    OnPropertyChanged(nameof(Y));
+                }
+            }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public double SpeedX { get; set; }
+        public double SpeedY { get; set; }
+        public double Weight { get; set; }
+        public double Diameter { get; set; }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
         {

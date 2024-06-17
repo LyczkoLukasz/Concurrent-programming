@@ -1,110 +1,94 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Data_Layer;
+using Logic_Layer;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Windows;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Logic_Layer;
-using Data_Layer;
-using System.Windows.Threading;
-using System.Threading.Tasks;
 
 namespace Concurrent_Programming.ViewModel
 {
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainWindowViewModel : INotifyPropertyChanged
     {
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        private int initialBallCount;
-        public int InitialBallCount
+        private ObservableCollection<Ball> balls = new ObservableCollection<Ball>();
+        public ObservableCollection<Ball> Balls
         {
-            get { return initialBallCount; }
+            get { return balls; }
             set
             {
-                if (initialBallCount != value)
-                {
-                    initialBallCount = value;
-                    OnPropertyChanged("InitialBallCount");
-                }
+                balls = value;
+                OnPropertyChanged(nameof(Balls));
             }
         }
 
-        public ObservableCollection<Ball> Balls { get; set; }
-
-        public ICommand StartCommand { get; set; }
-        public ICommand StopCommand { get; set; }
-
         private BallService ballService;
-        private CancellationTokenSource cts;
+        private bool isRunning;
 
-        public MainViewModel()
+        private int ballCount;
+        public int BallCount
         {
-            Balls = new ObservableCollection<Ball>();
-            StartCommand = new RelayCommand(Start, CanStart);
-            StopCommand = new RelayCommand(Stop, CanStop);
-            var rectangle = new MovementRectangle { Width = 300, Height = 300 };
-            this.ballService = new BallService(rectangle);
+            get => ballCount;
+            set
+            {
+                ballCount = value;
+                OnPropertyChanged(nameof(BallCount));
+            }
         }
+
+        public ICommand StartCommand { get; }
+        public ICommand StopCommand { get; }
+
+        public MainWindowViewModel()
+        {
+            var rectangle = new MovementRectangle { Width = 300, Height = 300 };
+            ballService = new BallService(rectangle);
+
+            StartCommand = new RelayCommand(_ => StartSimulation(), _ => !isRunning);
+            StopCommand = new RelayCommand(_ => StopSimulation(), _ => isRunning);
+
+            BallCount = 10; // Default value
+        }
+
+        public async void StartSimulation()
+        {
+            ballService.GenerateBalls(BallCount);
+            Balls.Clear();
+            foreach (var ball in ballService.GetBalls())
+            {
+                Balls.Add(ball);
+            }
+
+            isRunning = true;
+            ((RelayCommand)StopCommand).OnCanExecuteChanged();
+            ((RelayCommand)StartCommand).OnCanExecuteChanged();
+
+            await UpdateBallsAsync();
+        }
+
+        private async Task UpdateBallsAsync()
+        {
+            while (isRunning)
+            {
+                await ballService.UpdateBallsAsync();
+                OnPropertyChanged(nameof(Balls)); // Powiadamianie o zmianach w kulkach
+                await Task.Delay(16); // Aktualizuj co 16 ms
+            }
+        }
+
+        public void StopSimulation()
+        {
+            isRunning = false;
+            ((RelayCommand)StopCommand).OnCanExecuteChanged();
+            ((RelayCommand)StartCommand).OnCanExecuteChanged();
+
+            ballService.ClearBalls();
+            Balls.Clear();
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-        private bool CanStart(object parameter)
-        {
-            return cts == null || cts.IsCancellationRequested;
-        }
-
-        private async void Start(object parameter)
-        {
-            ballService.GenerateBalls(InitialBallCount);
-            cts = new CancellationTokenSource();
-            await UpdateBallsAsync(cts.Token);
-        }
-
-        private bool CanStop(object parameter)
-        {
-            return cts != null && !cts.IsCancellationRequested;
-        }
-
-        private void Stop(object parameter)
-        {
-            if (cts != null && !cts.IsCancellationRequested)
-            {
-                cts.Cancel();
-                ballService.ClearBalls();
-                Balls.Clear();
-            }
-        }
-
-        private async Task UpdateBallsAsync(CancellationToken cancellationToken)
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                try
-                {
-                    ballService.UpdateBalls();
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        Balls.Clear();
-                        foreach (var ball in ballService.GetBalls())
-                        {
-                            Balls.Add(ball);
-                        }
-                    });
-
-                    await Task.Delay(16, cancellationToken); // Aktualizuj co 16 ms
-                }
-                catch (TaskCanceledException)
-                {
-                    // Zadanie zostało anulowane, nie rób nic
-                }
-            }
-        }
-
     }
 }

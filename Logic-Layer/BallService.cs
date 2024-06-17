@@ -1,7 +1,8 @@
 ﻿using Data_Layer;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,6 +13,8 @@ namespace Logic_Layer
         private List<Ball> balls;
         private readonly object lockObject = new object();
         private MovementRectangle rectangle;
+        private readonly string logFilePath = "ball_diagnostics.json";
+        private static readonly object fileLock = new object();
 
         public BallService(MovementRectangle rectangle)
         {
@@ -22,98 +25,132 @@ namespace Logic_Layer
         public void GenerateBalls(int count)
         {
             Random random = new Random();
-
             lock (lockObject)
             {
                 for (int i = 0; i < count; i++)
                 {
-                    double diameter = 10; // srednica kulku, dyszka
-
-
+                    double diameter = 10;
                     Ball ball = new Ball
                     {
                         Diameter = diameter,
-                        X = random.NextDouble() * (rectangle.Width - diameter), // Zakładamy, że płaszczyzna ma rozmiar 300x300
+                        X = random.NextDouble() * (rectangle.Width - diameter),
                         Y = random.NextDouble() * (rectangle.Height - diameter),
-                        SpeedX = random.NextDouble() * 2 - 1, // Prędkość będzie losowa, od -1 do 1
+                        SpeedX = random.NextDouble() * 2 - 1,
                         SpeedY = random.NextDouble() * 2 - 1,
-                        Weight = 2 // Waga kuli
-                        
+                        Weight = 2
                     };
-
                     balls.Add(ball);
                 }
             }
         }
 
-
-        public void UpdateBalls()
+        public async Task UpdateBallsAsync()
         {
-            lock (lockObject)
+            await Task.Run(() =>
             {
-                foreach (var ball in balls)
+                lock (lockObject)
                 {
-                    ball.X += ball.SpeedX;
-                    ball.Y += ball.SpeedY;
-
-                    // Sprawdzamy czy kula nie wyszła poza płaszczyznę. Jeśli tak, odwracamy jej kierunek
-                    if (ball.X < 0 || ball.X > (300 - ball.Diameter)) ball.SpeedX = -ball.SpeedX;
-                    if (ball.Y < 0 || ball.Y > (300 - ball.Diameter)) ball.SpeedY = -ball.SpeedY;
-
-                    // Sprawdzamy kolizje między kulami
-                    foreach (var otherBall in balls)
+                    foreach (var ball in balls)
                     {
-                        if (otherBall == ball) continue;
+                        ball.X += ball.SpeedX;
+                        ball.Y += ball.SpeedY;
 
-                        double dx = ball.X - otherBall.X;
-                        double dy = ball.Y - otherBall.Y;
-                        double distance = Math.Sqrt(dx * dx + dy * dy);
+                        if (ball.X < 0 || ball.X > (rectangle.Width - ball.Diameter)) ball.SpeedX = -ball.SpeedX;
+                        if (ball.Y < 0 || ball.Y > (rectangle.Height - ball.Diameter)) ball.SpeedY = -ball.SpeedY;
 
-                        if (distance < ball.Diameter / 2 + otherBall.Diameter / 2)
+                        foreach (var otherBall in balls)
                         {
-                            // Kule kolidują, obliczamy nowe prędkości
-                            double angle = Math.Atan2(dy, dx);
-                            double sin = Math.Sin(angle);
-                            double cos = Math.Cos(angle);
-
-                            // Prędkość kuli po kolizji
-                            double speedX1 = ball.SpeedX * cos + ball.SpeedY * sin;
-                            double speedY1 = ball.SpeedY * cos - ball.SpeedX * sin;
-
-                            // Prędkość drugiej kuli po kolizji
-                            double speedX2 = otherBall.SpeedX * cos + otherBall.SpeedY * sin;
-                            double speedY2 = otherBall.SpeedY * cos - otherBall.SpeedX * sin;
-
-                            // Finalna prędkość po kolizji
-                            double finalSpeedX1 = ((ball.Weight - otherBall.Weight) * speedX1 + (otherBall.Weight + otherBall.Weight) * speedX2) / (ball.Weight + otherBall.Weight);
-                            double finalSpeedY1 = speedY1;
-
-                            // Finalna prędkość drugiej kuli po kolizji
-                            double finalSpeedX2 = ((ball.Weight + ball.Weight) * speedX1 + (otherBall.Weight - ball.Weight) * speedX2) / (ball.Weight + otherBall.Weight);
-                            double finalSpeedY2 = speedY2;
-
-                            // Przypisujemy nowe prędkości kulom
-                            ball.SpeedX = finalSpeedX1 * cos - finalSpeedY1 * sin;
-                            ball.SpeedY = finalSpeedY1 * cos + finalSpeedX1 * sin;
-
-                            otherBall.SpeedX = finalSpeedX2 * cos - finalSpeedY2 * sin;
-                            otherBall.SpeedY = finalSpeedY2 * cos + finalSpeedX2 * sin;
+                            if (ball != otherBall && IsColliding(ball, otherBall))
+                            {
+                                HandleCollision(ball, otherBall);
+                            }
                         }
                     }
                 }
-            }
+            });
+
+            await LogDiagnosticsAsync();
         }
 
+        private bool IsColliding(Ball ball1, Ball ball2)
+        {
+            double dx = ball1.X - ball2.X;
+            double dy = ball1.Y - ball2.Y;
+            double distance = Math.Sqrt(dx * dx + dy * dy);
+            return distance < (ball1.Diameter + ball2.Diameter) / 2;
+        }
 
+        private void HandleCollision(Ball ball, Ball otherBall)
+        {
+            double dx = otherBall.X - ball.X;
+            double dy = otherBall.Y - ball.Y;
+
+            double collisionAngle = Math.Atan2(dy, dx);
+
+            double speed1 = Math.Sqrt(ball.SpeedX * ball.SpeedX + ball.SpeedY * ball.SpeedY);
+            double speed2 = Math.Sqrt(otherBall.SpeedX * otherBall.SpeedX + otherBall.SpeedY * otherBall.SpeedY);
+
+            double direction1 = Math.Atan2(ball.SpeedY, ball.SpeedX);
+            double direction2 = Math.Atan2(otherBall.SpeedY, otherBall.SpeedX);
+
+            double newSpeedX1 = speed1 * Math.Cos(direction1 - collisionAngle);
+            double newSpeedY1 = speed1 * Math.Sin(direction1 - collisionAngle);
+            double newSpeedX2 = speed2 * Math.Cos(direction2 - collisionAngle);
+            double newSpeedY2 = speed2 * Math.Sin(direction2 - collisionAngle);
+
+            double finalSpeedX1 = ((ball.Weight - otherBall.Weight) * newSpeedX1 + (otherBall.Weight + otherBall.Weight) * newSpeedX2) / (ball.Weight + otherBall.Weight);
+            double finalSpeedY1 = newSpeedY1;
+
+            double finalSpeedX2 = ((ball.Weight + ball.Weight) * newSpeedX1 + (otherBall.Weight - ball.Weight) * newSpeedX2) / (ball.Weight + otherBall.Weight);
+            double finalSpeedY2 = newSpeedY2;
+
+            ball.SpeedX = Math.Cos(collisionAngle) * finalSpeedX1 + Math.Cos(collisionAngle + Math.PI / 2) * finalSpeedY1;
+            ball.SpeedY = Math.Sin(collisionAngle) * finalSpeedX1 + Math.Sin(collisionAngle + Math.PI / 2) * finalSpeedY1;
+
+            otherBall.SpeedX = Math.Cos(collisionAngle) * finalSpeedX2 + Math.Cos(collisionAngle + Math.PI / 2) * finalSpeedY2;
+            otherBall.SpeedY = Math.Sin(collisionAngle) * finalSpeedX2 + Math.Sin(collisionAngle + Math.PI / 2) * finalSpeedY2;
+        }
+
+        private async Task LogDiagnosticsAsync()
+        {
+            List<object> diagnosticsData;
+            lock (lockObject)
+            {
+                diagnosticsData = new List<object>();
+                foreach (var ball in balls)
+                {
+                    diagnosticsData.Add(new
+                    {
+                        ball.X,
+                        ball.Y,
+                        ball.SpeedX,
+                        ball.SpeedY,
+                        ball.Weight,
+                        ball.Diameter
+                    });
+                }
+            }
+
+            var json = JsonConvert.SerializeObject(diagnosticsData, Newtonsoft.Json.Formatting.Indented);
+
+            await Task.Run(() =>
+            {
+                lock (fileLock)
+                {
+                    File.WriteAllText(logFilePath, json);
+                }
+            });
+
+            // Tymczasowe wyjście konsolowe, aby sprawdzić ścieżkę do pliku
+            Console.WriteLine($"Log file saved to: {Path.GetFullPath(logFilePath)}");
+        }
 
         public List<Ball> GetBalls()
         {
             lock (lockObject)
             {
-                return balls; // Zwracamy kopię listy aby nie można było zmienić zawartości listy z zewnątrz
-                //zapewniam w ten sposob spojnosc danych w wielowatkowym srodowisku
+                return new List<Ball>(balls);
             }
-            
         }
 
         public void ClearBalls()
@@ -123,14 +160,5 @@ namespace Logic_Layer
                 balls.Clear();
             }
         }
-
-        public int GetBallsCount()
-        {
-            lock (lockObject)
-            {
-                return balls.Count;
-            }
-        }
     }
-
 }

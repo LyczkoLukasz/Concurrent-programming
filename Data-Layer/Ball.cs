@@ -1,10 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Data_Layer
 {
@@ -19,7 +14,7 @@ namespace Data_Layer
                 if (x != value)
                 {
                     x = value;
-                    OnPropertyChanged("X");
+                    OnPropertyChanged(nameof(X));
                 }
             }
         }
@@ -33,21 +28,21 @@ namespace Data_Layer
                 if (y != value)
                 {
                     y = value;
-                    OnPropertyChanged("Y");
+                    OnPropertyChanged(nameof(Y));
                 }
             }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public double SpeedX { get; set; }
+        public double SpeedY { get; set; }
+        public double Weight { get; set; }
+        public double Diameter { get; set; }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-        public double SpeedX { get; set; }
-        public double SpeedY { get; set; }
-
-        public double Weight { get; set; }
-        public double Diameter { get; set; }
     }
 }
