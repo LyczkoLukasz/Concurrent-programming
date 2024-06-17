@@ -11,17 +11,18 @@ namespace Logic_Layer
     public class BallService
     {
         private List<Ball> balls;
-        private readonly object lockObject = new object();
-        private MovementRectangle rectangle;
-        private readonly string logFilePath = "ball_diagnostics.json";
-        private static readonly object fileLock = new object();
+        private readonly object lockObject = new object(); // Obiekt do synchronizacji dostępu do listy kulek
+        private MovementRectangle rectangle; // Obiekt reprezentujący granice ruchu kulek
+        private readonly string logFilePath = "ball_diagnostics.json"; // Ścieżka do pliku logów diagnostycznych
+        private static readonly object fileLock = new object(); // Obiekt do synchronizacji dostępu do pliku logów
 
         public BallService(MovementRectangle rectangle)
         {
             this.rectangle = rectangle;
-            balls = new List<Ball>();
+            balls = new List<Ball>(); // Inicjalizacja listy kulek
         }
 
+        // Generowanie kulek o losowych pozycjach i prędkościach
         public void GenerateBalls(int count)
         {
             Random random = new Random();
@@ -44,6 +45,7 @@ namespace Logic_Layer
             }
         }
 
+        // Asynchroniczna aktualizacja pozycji kulek
         public async Task UpdateBallsAsync()
         {
             await Task.Run(() =>
@@ -55,9 +57,11 @@ namespace Logic_Layer
                         ball.X += ball.SpeedX;
                         ball.Y += ball.SpeedY;
 
+                        // Odbicie od ścian prostokąta
                         if (ball.X < 0 || ball.X > (rectangle.Width - ball.Diameter)) ball.SpeedX = -ball.SpeedX;
                         if (ball.Y < 0 || ball.Y > (rectangle.Height - ball.Diameter)) ball.SpeedY = -ball.SpeedY;
 
+                        // Sprawdzenie kolizji między kulkami
                         foreach (var otherBall in balls)
                         {
                             if (ball != otherBall && IsColliding(ball, otherBall))
@@ -69,9 +73,10 @@ namespace Logic_Layer
                 }
             });
 
-            await LogDiagnosticsAsync();
+            await LogDiagnosticsAsync(); // Logowanie diagnostyczne
         }
 
+        // Sprawdzenie, czy kulki się zderzają
         private bool IsColliding(Ball ball1, Ball ball2)
         {
             double dx = ball1.X - ball2.X;
@@ -80,6 +85,7 @@ namespace Logic_Layer
             return distance < (ball1.Diameter + ball2.Diameter) / 2;
         }
 
+        // Obsługa kolizji między kulkami
         private void HandleCollision(Ball ball, Ball otherBall)
         {
             double dx = otherBall.X - ball.X;
@@ -111,6 +117,7 @@ namespace Logic_Layer
             otherBall.SpeedY = Math.Sin(collisionAngle) * finalSpeedX2 + Math.Sin(collisionAngle + Math.PI / 2) * finalSpeedY2;
         }
 
+        // Asynchroniczne logowanie diagnostyczne
         private async Task LogDiagnosticsAsync()
         {
             List<object> diagnosticsData;
@@ -137,7 +144,7 @@ namespace Logic_Layer
             {
                 lock (fileLock)
                 {
-                    File.WriteAllText(logFilePath, json);
+                    File.WriteAllText(logFilePath, json); // Zapis danych do pliku
                 }
             });
 
@@ -145,6 +152,7 @@ namespace Logic_Layer
             Console.WriteLine($"Log file saved to: {Path.GetFullPath(logFilePath)}");
         }
 
+        // Pobranie listy kulek
         public List<Ball> GetBalls()
         {
             lock (lockObject)
@@ -153,6 +161,7 @@ namespace Logic_Layer
             }
         }
 
+        // Wyczyść listę kulek
         public void ClearBalls()
         {
             lock (lockObject)

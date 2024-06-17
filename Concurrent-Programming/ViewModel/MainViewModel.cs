@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Timers; // Dodaj przestrzeń nazw dla System.Timers
 
 namespace Concurrent_Programming.ViewModel
 {
@@ -22,6 +23,7 @@ namespace Concurrent_Programming.ViewModel
 
         private BallService ballService;
         private bool isRunning;
+        private System.Timers.Timer updateTimer; // Użyj pełnej nazwy przestrzeni nazw
 
         private int ballCount;
         public int BallCount
@@ -45,10 +47,14 @@ namespace Concurrent_Programming.ViewModel
             StartCommand = new RelayCommand(_ => StartSimulation(), _ => !isRunning);
             StopCommand = new RelayCommand(_ => StopSimulation(), _ => isRunning);
 
-            BallCount = 10; // Default value
+            BallCount = 10; // Wartość domyślna liczby kulek
+
+            // Inicjalizacja Timer
+            updateTimer = new System.Timers.Timer(16); // Aktualizuj co 16 ms (około 60 razy na sekundę)
+            updateTimer.Elapsed += UpdateBalls;
         }
 
-        public async void StartSimulation()
+        public void StartSimulation()
         {
             ballService.GenerateBalls(BallCount);
             Balls.Clear();
@@ -61,17 +67,7 @@ namespace Concurrent_Programming.ViewModel
             ((RelayCommand)StopCommand).OnCanExecuteChanged();
             ((RelayCommand)StartCommand).OnCanExecuteChanged();
 
-            await UpdateBallsAsync();
-        }
-
-        private async Task UpdateBallsAsync()
-        {
-            while (isRunning)
-            {
-                await ballService.UpdateBallsAsync();
-                OnPropertyChanged(nameof(Balls)); // Powiadamianie o zmianach w kulkach
-                await Task.Delay(16); // Aktualizuj co 16 ms
-            }
+            updateTimer.Start(); // Uruchom Timer
         }
 
         public void StopSimulation()
@@ -80,8 +76,17 @@ namespace Concurrent_Programming.ViewModel
             ((RelayCommand)StopCommand).OnCanExecuteChanged();
             ((RelayCommand)StartCommand).OnCanExecuteChanged();
 
+            updateTimer.Stop(); // Zatrzymaj Timer
+
             ballService.ClearBalls();
             Balls.Clear();
+        }
+
+        // Aktualizacja kulek przy każdym wywołaniu Timera
+        private async void UpdateBalls(object? sender, ElapsedEventArgs e)
+        {
+            await ballService.UpdateBallsAsync();
+            OnPropertyChanged(nameof(Balls)); // Powiadamianie o zmianach w kulkach
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
